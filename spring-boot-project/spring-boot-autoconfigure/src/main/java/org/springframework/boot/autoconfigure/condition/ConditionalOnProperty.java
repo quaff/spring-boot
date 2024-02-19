@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,6 +87,7 @@ import org.springframework.core.env.Environment;
  * @author Maciej Walkowiak
  * @author Stephane Nicoll
  * @author Phillip Webb
+ * @author Yanming Zhou
  * @since 1.1.0
  */
 @Retention(RetentionPolicy.RUNTIME)
@@ -134,5 +135,11 @@ public @interface ConditionalOnProperty {
 	 * @return if the condition should match if the property is missing
 	 */
 	boolean matchIfMissing() default false;
+
+	/**
+	 * Specify if the condition should be negating. Defaults to {@code false}.
+	 * @return if the condition should be negating
+	 */
+	boolean negating() default false;
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2023 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  * @author Stephane Nicoll
  * @author Phillip Webb
  * @author Andy Wilkinson
+ * @author Yanming Zhou
  */
 class ConditionalOnPropertyTests {
 
@@ -271,6 +272,30 @@ class ConditionalOnPropertyTests {
 		assertThat(this.context.containsBean("foo")).isTrue();
 	}
 
+	@Test
+	void conditionDoesMatchWithPropertyNotDefined() {
+		load(NegatingConfiguration.class);
+		assertThat(this.context.containsBean("foo")).isTrue();
+	}
+
+	@Test
+	void conditionDoesNotMatchWithPropertyDefined() {
+		load(NegatingConfiguration.class, "property=foo");
+		assertThat(this.context.containsBean("foo")).isFalse();
+	}
+
+	@Test
+	void conditionDoesMatchWithPropertyNotHavingValue() {
+		load(NegatingConfiguration.class, "property=foo");
+		assertThat(this.context.containsBean("bar")).isTrue();
+	}
+
+	@Test
+	void conditionDoesNotMatchWithPropertyHavingValue() {
+		load(NegatingConfiguration.class, "property=bar");
+		assertThat(this.context.containsBean("bar")).isFalse();
+	}
+
 	private void load(Class<?> config, String... environment) {
 		TestPropertyValues.of(environment).applyTo(this.environment);
 		this.context = new SpringApplicationBuilder(config).environment(this.environment)
@@ -285,6 +310,23 @@ class ConditionalOnPropertyTests {
 		@Bean
 		String foo() {
 			return "foo";
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class NegatingConfiguration {
+
+		@Bean
+		@ConditionalOnProperty(name = "property", negating = true)
+		String foo() {
+			return "foo";
+		}
+
+		@Bean
+		@ConditionalOnProperty(name = "property", havingValue = "bar", negating = true)
+		String bar() {
+			return "bar";
 		}
 
 	}

@@ -40,10 +40,11 @@ import org.springframework.util.StringUtils;
  * @author Phillip Webb
  * @author Stephane Nicoll
  * @author Andy Wilkinson
+ * @author Yanming Zhou
  * @see ConditionalOnProperty
  */
 @Order(Ordered.HIGHEST_PRECEDENCE + 40)
-class OnPropertyCondition extends SpringBootCondition {
+class OnPropertyCondition extends NegatableSpringBootCondition<ConditionalOnProperty> {
 
 	@Override
 	public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
