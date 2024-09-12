@@ -128,6 +128,7 @@ import static org.mockito.Mockito.mock;
  * @author Stephane Nicoll
  * @author Madhura Bhave
  * @author Vladislav Kisel
+ * @author Yanming Zhou
  */
 @ExtendWith(OutputCaptureExtension.class)
 class ConfigurationPropertiesTests {
@@ -1268,6 +1269,25 @@ class ConfigurationPropertiesTests {
 	void loadWhenBindingToJavaBeanWithConversionToCustomListImplementation() {
 		load(SetterBoundCustomListPropertiesConfiguration.class, "test.values=a,b");
 		assertThat(this.context.getBean(SetterBoundCustomListProperties.class).getValues()).containsExactly("a", "b");
+	}
+
+	@Test
+	void autowiredConstructorShouldInjectBeanInsteadOfBindProperties() {
+		load(ServicePropertiesConfiguration.class, "primary.service.port=1234", "foo.service.host=127.0.0.1");
+		PrimaryServiceProperties primaryServiceProperties = this.context.getBean(PrimaryServiceProperties.class);
+		assertThat(primaryServiceProperties.getHost()).isEqualTo("localhost");
+		assertThat(primaryServiceProperties.getPort()).isEqualTo(1234);
+		FooServiceProperties fooServiceProperties = this.context.getBean(FooServiceProperties.class);
+		assertThat(fooServiceProperties.getHost()).isEqualTo("127.0.0.1");
+		assertThat(fooServiceProperties.getPort()).isEqualTo(1234);
+	}
+
+	@Test
+	void privateConstructorShouldInjectBeanInsteadOfBindProperties() {
+		load(ServicePropertiesConfiguration.class, "primary.service.port=1234", "bar.service.host=127.0.0.1");
+		BarServiceProperties barServiceProperties = this.context.getBean(BarServiceProperties.class);
+		assertThat(barServiceProperties.getHost()).isEqualTo("127.0.0.1");
+		assertThat(barServiceProperties.getPort()).isEqualTo(1234);
 	}
 
 	private AnnotationConfigApplicationContext load(Class<?> configuration, String... inlinedProperties) {
@@ -3307,6 +3327,63 @@ class ConfigurationPropertiesTests {
 		CustomList(List<E> delegate) {
 			super(delegate);
 		}
+
+	}
+
+	static abstract class ServiceProperties {
+
+		private String host = "localhost";
+
+		private int port = 1000;
+
+		public String getHost() {
+			return this.host;
+		}
+
+		public void setHost(String host) {
+			this.host = host;
+		}
+
+		public int getPort() {
+			return this.port;
+		}
+
+		public void setPort(int port) {
+			this.port = port;
+		}
+
+	}
+
+	@ConfigurationProperties("primary.service")
+	static class PrimaryServiceProperties extends ServiceProperties {
+
+	}
+
+	@ConfigurationProperties("foo.service")
+	static class FooServiceProperties extends ServiceProperties {
+
+		@Autowired
+		public FooServiceProperties(PrimaryServiceProperties serviceProperties) {
+			// should use BeanUtils.copyProperties(serviceProperties, this) in practice
+			setHost(serviceProperties.getHost());
+			setPort(serviceProperties.getPort());
+		}
+
+	}
+
+	@ConfigurationProperties("bar.service")
+	static class BarServiceProperties extends ServiceProperties {
+
+		private BarServiceProperties(PrimaryServiceProperties serviceProperties) {
+			setHost(serviceProperties.getHost());
+			setPort(serviceProperties.getPort());
+		}
+
+	}
+
+	@EnableConfigurationProperties({ PrimaryServiceProperties.class, FooServiceProperties.class,
+			BarServiceProperties.class })
+	static class ServicePropertiesConfiguration {
 
 	}
 
