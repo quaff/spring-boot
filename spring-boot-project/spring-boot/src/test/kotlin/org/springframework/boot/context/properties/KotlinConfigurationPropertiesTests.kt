@@ -33,6 +33,7 @@ import org.springframework.boot.context.properties.bind.Name
  *
  * @author Madhura Bhave
  * @author Lasse Wulff
+ * @author Yanming Zhou
  */
 class KotlinConfigurationPropertiesTests {
 
@@ -87,6 +88,20 @@ class KotlinConfigurationPropertiesTests {
 		assertThat(this.context.getBean(MutableDataClassProperties::class.java).prop).isEqualTo("alpha")
 	}
 
+	@Test
+	fun `data class with setter properties can be bound`() {
+		this.context.register(EnableDataClassWithSetterProperties::class.java)
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"data-with-setter.foo=foo",
+			"data-with-setter.bar=foobar"
+		)
+		this.context.refresh()
+		val properties = this.context.getBean(DataClassWithSetterProperties::class.java)
+		assertThat(properties.foo).isEqualTo("foo")
+		assertThat(properties.bar).isEqualTo("foobar")
+	}
+
 	@ConfigurationProperties("foo")
 	class BingProperties(@Suppress("UNUSED_PARAMETER") bar: String)
 
@@ -136,4 +151,11 @@ class KotlinConfigurationPropertiesTests {
 		var bar: String = ""
 	}
 
+	@EnableConfigurationProperties(DataClassWithSetterProperties::class)
+	class EnableDataClassWithSetterProperties
+
+	@ConfigurationProperties(prefix = "data-with-setter")
+	data class DataClassWithSetterProperties(val foo: String) {
+		var bar: String = "bar"
+	}
 }
