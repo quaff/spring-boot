@@ -16,6 +16,8 @@
 
 package org.springframework.boot.context.properties;
 
+import java.util.stream.Stream;
+
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -39,6 +41,7 @@ import org.springframework.util.Assert;
  * @author Christian Dupuis
  * @author Stephane Nicoll
  * @author Madhura Bhave
+ * @author Yanming Zhou
  * @since 1.0.0
  */
 public class ConfigurationPropertiesBindingPostProcessor
@@ -49,11 +52,15 @@ public class ConfigurationPropertiesBindingPostProcessor
 	 */
 	public static final String BEAN_NAME = ConfigurationPropertiesBindingPostProcessor.class.getName();
 
+	private static final String PROPERTY_NAME_BINDING_VALUE_OBJECT_AS_JAVA_BEAN = "spring.config.binding-value-object-as-java-bean";
+
 	private ApplicationContext applicationContext;
 
 	private BeanDefinitionRegistry registry;
 
 	private ConfigurationPropertiesBinder binder;
+
+	private boolean bindingValueObjectAsJavaBean;
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
@@ -66,6 +73,8 @@ public class ConfigurationPropertiesBindingPostProcessor
 		// it causes eager factory bean initialization
 		this.registry = (BeanDefinitionRegistry) this.applicationContext.getAutowireCapableBeanFactory();
 		this.binder = ConfigurationPropertiesBinder.get(this.applicationContext);
+		this.bindingValueObjectAsJavaBean = this.applicationContext.getEnvironment()
+			.getProperty(PROPERTY_NAME_BINDING_VALUE_OBJECT_AS_JAVA_BEAN, boolean.class, false);
 	}
 
 	@Override
@@ -78,11 +87,27 @@ public class ConfigurationPropertiesBindingPostProcessor
 		if (!hasBoundValueObject(beanName)) {
 			bind(ConfigurationPropertiesBean.get(this.applicationContext, bean, beanName));
 		}
+		else if (this.bindingValueObjectAsJavaBean && shouldBindAsJavaBean(bean)) {
+			bind(ConfigurationPropertiesBean.forBoundValueObjectAsJavaBean(this.applicationContext, bean, beanName));
+		}
 		return bean;
 	}
 
 	private boolean hasBoundValueObject(String beanName) {
 		return BindMethod.VALUE_OBJECT.equals(BindMethodAttribute.get(this.registry, beanName));
+	}
+
+	private boolean shouldBindAsJavaBean(Object bean) {
+		Class<?> type = bean.getClass();
+		while (type != null && !Object.class.equals(type)) {
+			if (Stream.of(type.getDeclaredMethods())
+				.anyMatch((m) -> m.getName().startsWith("set") && m.getName().length() > 3
+						&& m.getParameterCount() == 1)) {
+				return true;
+			}
+			type = type.getSuperclass();
+		}
+		return false;
 	}
 
 	private void bind(ConfigurationPropertiesBean bean) {

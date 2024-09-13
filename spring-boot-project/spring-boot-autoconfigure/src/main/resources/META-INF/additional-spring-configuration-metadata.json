@@ -562,6 +562,12 @@
       }
     },
     {
+      "name": "spring.config.binding-value-object-as-java-bean",
+      "type": "java.lang.Boolean",
+      "defaultValue": "false",
+      "description": "Binding @ConfigurationProperties value object as java bean."
+    },
+    {
       "name": "spring.couchbase.bootstrap-hosts",
       "type": "java.util.List<java.lang.String>",
       "description": "Couchbase nodes (host or IP address) to bootstrap from.",

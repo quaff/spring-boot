@@ -52,6 +52,7 @@ import org.springframework.validation.annotation.Validated;
  * basis (for example, in a {@link BeanPostProcessor}).
  *
  * @author Phillip Webb
+ * @author Yanming Zhou
  * @since 2.2.0
  * @see #getAll(ApplicationContext)
  * @see #get(ApplicationContext, Object, String)
@@ -235,6 +236,16 @@ public final class ConfigurationPropertiesBean {
 		Assert.state(bindTarget != null && deduceBindMethod(bindTarget) == VALUE_OBJECT_BIND_METHOD,
 				() -> "Bean '" + beanName + "' is not a @ConfigurationProperties value object");
 		return create(beanName, null, bindTarget.withBindMethod(VALUE_OBJECT_BIND_METHOD));
+	}
+
+	static ConfigurationPropertiesBean forBoundValueObjectAsJavaBean(ApplicationContext applicationContext, Object bean, String beanName) {
+		// value object could have setter methods for optional properties
+		Method factoryMethod = findFactoryMethod(applicationContext, beanName);
+		Bindable<Object> bindTarget = createBindTarget(bean, bean.getClass(), factoryMethod);
+		if (bindTarget == null) {
+			return null;
+		}
+		return create(beanName, bean, bindTarget.withExistingValue(bean));
 	}
 
 	private static Bindable<Object> createBindTarget(Object bean, Class<?> beanType, Method factoryMethod) {

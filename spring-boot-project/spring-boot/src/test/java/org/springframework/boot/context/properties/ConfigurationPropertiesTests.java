@@ -128,6 +128,7 @@ import static org.mockito.Mockito.mock;
  * @author Stephane Nicoll
  * @author Madhura Bhave
  * @author Vladislav Kisel
+ * @author Yanming Zhou
  */
 @ExtendWith(OutputCaptureExtension.class)
 class ConfigurationPropertiesTests {
@@ -1268,6 +1269,19 @@ class ConfigurationPropertiesTests {
 	void loadWhenBindingToJavaBeanWithConversionToCustomListImplementation() {
 		load(SetterBoundCustomListPropertiesConfiguration.class, "test.values=a,b");
 		assertThat(this.context.getBean(SetterBoundCustomListProperties.class).getValues()).containsExactly("a", "b");
+	}
+
+	@Test
+	void bindValueObjectAsJavaBean() {
+		load(ConstructorWithSetterBoundPropertiesConfiguration.class,
+				"spring.config.binding-value-object-as-java-bean=true", "test.required-param1=a",
+				"test.required-param2=b", "test.optional-param1=c");
+		ConstructorWithSetterBoundProperties properties = this.context
+			.getBean(ConstructorWithSetterBoundProperties.class);
+		assertThat(properties.getRequiredParam1()).isEqualTo("a");
+		assertThat(properties.getRequiredParam2()).isEqualTo("b");
+		assertThat(properties.getOptionalParam1()).isEqualTo("c");
+		assertThat(properties.getOptionalParam2()).isEqualTo("optionalParam2");
 	}
 
 	private AnnotationConfigApplicationContext load(Class<?> configuration, String... inlinedProperties) {
@@ -3307,6 +3321,53 @@ class ConfigurationPropertiesTests {
 		CustomList(List<E> delegate) {
 			super(delegate);
 		}
+
+	}
+
+	@ConfigurationProperties("test")
+	static class ConstructorWithSetterBoundProperties {
+
+		private final String requiredParam1;
+
+		private final String requiredParam2;
+
+		private String optionalParam1 = "optionalParam1";
+
+		private String optionalParam2 = "optionalParam2";
+
+		ConstructorWithSetterBoundProperties(String requiredParam1, String requiredParam2) {
+			this.requiredParam1 = requiredParam1;
+			this.requiredParam2 = requiredParam2;
+		}
+
+		String getOptionalParam1() {
+			return this.optionalParam1;
+		}
+
+		void setOptionalParam1(String optionalParam1) {
+			this.optionalParam1 = optionalParam1;
+		}
+
+		String getOptionalParam2() {
+			return this.optionalParam2;
+		}
+
+		void setOptionalParam2(String optionalParam2) {
+			this.optionalParam2 = optionalParam2;
+		}
+
+		String getRequiredParam1() {
+			return this.requiredParam1;
+		}
+
+		String getRequiredParam2() {
+			return this.requiredParam2;
+		}
+
+	}
+
+	@EnableConfigurationProperties(ConstructorWithSetterBoundProperties.class)
+	static class ConstructorWithSetterBoundPropertiesConfiguration {
 
 	}
 
