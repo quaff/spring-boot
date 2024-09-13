@@ -33,6 +33,7 @@ import org.springframework.boot.context.properties.bind.Name
  *
  * @author Madhura Bhave
  * @author Lasse Wulff
+ * @author Yanming Zhou
  */
 class KotlinConfigurationPropertiesTests {
 
@@ -46,8 +47,10 @@ class KotlinConfigurationPropertiesTests {
 	@Test //gh-18652
 	fun `type with constructor binding and existing singleton should not fail`() {
 		val beanFactory = this.context.beanFactory
-		(beanFactory as BeanDefinitionRegistry).registerBeanDefinition("foo",
-				RootBeanDefinition(BingProperties::class.java))
+		(beanFactory as BeanDefinitionRegistry).registerBeanDefinition(
+			"foo",
+			RootBeanDefinition(BingProperties::class.java)
+		)
 		beanFactory.registerSingleton("foo", BingProperties(""))
 		this.context.register(EnableConfigProperties::class.java)
 		this.context.refresh()
@@ -56,15 +59,23 @@ class KotlinConfigurationPropertiesTests {
 	@Test
 	fun `type with constructor bound lateinit property can be bound`() {
 		this.context.register(EnableLateInitProperties::class.java)
-		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.context, "lateinit.inner.value=alpha")
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"lateinit.inner.value=alpha"
+		)
 		this.context.refresh()
-		assertThat(this.context.getBean(LateInitProperties::class.java).inner.value).isEqualTo("alpha")
+		assertThat(this.context.getBean(LateInitProperties::class.java).inner.value).isEqualTo(
+			"alpha"
+		)
 	}
 
 	@Test
 	fun `renamed property can be bound`() {
 		this.context.register(EnableRenamedProperties::class.java)
-		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.context, "renamed.var=beta")
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"renamed.var=beta"
+		)
 		this.context.refresh()
 		assertThat(this.context.getBean(RenamedProperties::class.java).bar).isEqualTo("beta")
 	}
@@ -72,7 +83,10 @@ class KotlinConfigurationPropertiesTests {
 	@Test
 	fun `type with constructor bound lateinit property with default can be bound`() {
 		this.context.register(EnableLateInitPropertiesWithDefault::class.java)
-		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.context, "lateinit-with-default.inner.bravo=two")
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"lateinit-with-default.inner.bravo=two"
+		)
 		this.context.refresh()
 		val properties = this.context.getBean(LateInitPropertiesWithDefault::class.java)
 		assertThat(properties.inner.alpha).isEqualTo("apple")
@@ -82,9 +96,29 @@ class KotlinConfigurationPropertiesTests {
 	@Test
 	fun `mutable data class properties can be imported`() {
 		this.context.register(MutableDataClassPropertiesImporter::class.java)
-		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(this.context, "mutable.prop=alpha")
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"mutable.prop=alpha"
+		)
 		this.context.refresh()
-		assertThat(this.context.getBean(MutableDataClassProperties::class.java).prop).isEqualTo("alpha")
+		assertThat(this.context.getBean(MutableDataClassProperties::class.java).prop).isEqualTo(
+			"alpha"
+		)
+	}
+
+	@Test
+	fun `data class with setter properties can be bound`() {
+		this.context.register(EnableDataClassWithSetterProperties::class.java)
+		TestPropertySourceUtils.addInlinedPropertiesToEnvironment(
+			this.context,
+			"spring.config.binding-value-object-as-java-bean=true",
+			"data-with-setter.foo=foo",
+			"data-with-setter.bar=foobar"
+		)
+		this.context.refresh()
+		val properties = this.context.getBean(DataClassWithSetterProperties::class.java)
+		assertThat(properties.foo).isEqualTo("foo")
+		assertThat(properties.bar).isEqualTo("foobar")
 	}
 
 	@ConfigurationProperties(prefix = "foo")
@@ -131,9 +165,16 @@ class KotlinConfigurationPropertiesTests {
 	class EnableRenamedProperties
 
 	@ConfigurationProperties(prefix = "renamed")
-	class RenamedProperties{
+	class RenamedProperties {
 		@Name("var")
 		var bar: String = ""
 	}
 
+	@EnableConfigurationProperties(DataClassWithSetterProperties::class)
+	class EnableDataClassWithSetterProperties
+
+	@ConfigurationProperties(prefix = "data-with-setter")
+	data class DataClassWithSetterProperties(val foo: String) {
+		var bar: String = "bar"
+	}
 }
