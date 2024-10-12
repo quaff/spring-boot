@@ -17,7 +17,9 @@
 package org.springframework.boot.context.properties;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import org.springframework.beans.BeansException;
@@ -49,8 +51,13 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.convert.ConversionService;
+import org.springframework.core.env.EnumerablePropertySource;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.PropertySources;
 import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 import org.springframework.validation.annotation.Validated;
@@ -61,6 +68,7 @@ import org.springframework.validation.annotation.Validated;
  *
  * @author Stephane Nicoll
  * @author Phillip Webb
+ * @author Yanming Zhou
  */
 class ConfigurationPropertiesBinder {
 
@@ -91,14 +99,16 @@ class ConfigurationPropertiesBinder {
 		Bindable<?> target = propertiesBean.asBindTarget();
 		ConfigurationProperties annotation = propertiesBean.getAnnotation();
 		BindHandler bindHandler = getBindHandler(target, annotation);
-		return getBinder().bind(annotation.prefix(), target, bindHandler);
+		Binder binder = getBinder(target, annotation);
+		return binder.bind(annotation.prefix(), target, bindHandler);
 	}
 
 	Object bindOrCreate(ConfigurationPropertiesBean propertiesBean) {
 		Bindable<?> target = propertiesBean.asBindTarget();
 		ConfigurationProperties annotation = propertiesBean.getAnnotation();
 		BindHandler bindHandler = getBindHandler(target, annotation);
-		return getBinder().bindOrCreate(annotation.prefix(), target, bindHandler);
+		Binder binder = getBinder(target, annotation);
+		return binder.bindOrCreate(annotation.prefix(), target, bindHandler);
 	}
 
 	private Validator getConfigurationPropertiesValidator(ApplicationContext applicationContext) {
@@ -178,7 +188,36 @@ class ConfigurationPropertiesBinder {
 		return new ConfigurationPropertiesJsr303Validator(this.applicationContext, type);
 	}
 
-	private Binder getBinder() {
+	private <T> Binder getBinder(Bindable<T> target, ConfigurationProperties annotation) {
+		return StringUtils.hasText(annotation.prefix()) && StringUtils.hasText(annotation.inheritedPrefix())
+				? createBinderForInheritedPrefix(annotation.prefix(), annotation.inheritedPrefix()) : getDefaultBinder();
+	}
+
+	private Binder createBinderForInheritedPrefix(String prefix, String inheritedPrefix) {
+		MutablePropertySources propertySourcesToUse = new MutablePropertySources(this.propertySources);
+		propertySourcesToUse.addLast(createPropertySourceForInheritedPrefix(prefix, inheritedPrefix));
+		return new Binder(ConfigurationPropertySources.from(propertySourcesToUse),
+				getPropertySourcesPlaceholdersResolver(), getConversionServices(), getPropertyEditorInitializer(), null,
+				null);
+	}
+
+	private PropertySource<?> createPropertySourceForInheritedPrefix(String prefix, String inheritedPrefix) {
+		Map<String, Object> map = new HashMap<>();
+		for (PropertySource<?> propertySource : this.propertySources) {
+			if (propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource) {
+				for (String key : enumerablePropertySource.getPropertyNames()) {
+					if (key.startsWith(inheritedPrefix + '.')) {
+						map.put(prefix + '.' + key.substring(inheritedPrefix.length() + 1),
+								enumerablePropertySource.getProperty(key));
+					}
+				}
+			}
+		}
+		return new MapPropertySource(
+				"MapPropertySource for prefix '%s' inheriting from '%s'".formatted(prefix, inheritedPrefix), map);
+	}
+
+	private Binder getDefaultBinder() {
 		if (this.binder == null) {
 			this.binder = new Binder(getConfigurationPropertySources(), getPropertySourcesPlaceholdersResolver(),
 					getConversionServices(), getPropertyEditorInitializer(), null, null);
