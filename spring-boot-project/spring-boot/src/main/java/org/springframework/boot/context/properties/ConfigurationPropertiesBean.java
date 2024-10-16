@@ -23,6 +23,8 @@ import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
@@ -41,7 +43,6 @@ import org.springframework.core.annotation.MergedAnnotation;
 import org.springframework.core.annotation.MergedAnnotations;
 import org.springframework.core.annotation.MergedAnnotations.SearchStrategy;
 import org.springframework.util.Assert;
-import org.springframework.validation.annotation.Validated;
 
 /**
  * Provides access to {@link ConfigurationProperties @ConfigurationProperties} bean
@@ -52,6 +53,7 @@ import org.springframework.validation.annotation.Validated;
  * basis (for example, in a {@link BeanPostProcessor}).
  *
  * @author Phillip Webb
+ * @author Yanming Zhou
  * @since 2.2.0
  * @see #getAll(ApplicationContext)
  * @see #get(ApplicationContext, Object, String)
@@ -245,12 +247,21 @@ public final class ConfigurationPropertiesBean {
 	}
 
 	private static Annotation[] findAnnotations(Object instance, Class<?> type, Method factory) {
-		ConfigurationProperties annotation = findAnnotation(instance, type, factory, ConfigurationProperties.class);
-		if (annotation == null) {
-			return null;
+		Stream<MergedAnnotation<Annotation>> annotationStream = MergedAnnotations
+			.from(type, SearchStrategy.TYPE_HIERARCHY)
+			.stream();
+		if (AopUtils.isAopProxy(instance)) {
+			annotationStream = Stream.concat(annotationStream,
+					MergedAnnotations.from(AopUtils.getTargetClass(instance), SearchStrategy.TYPE_HIERARCHY).stream());
 		}
-		Validated validated = findAnnotation(instance, type, factory, Validated.class);
-		return (validated != null) ? new Annotation[] { annotation, validated } : new Annotation[] { annotation };
+		if (factory != null) {
+			annotationStream = Stream.concat(MergedAnnotations.from(factory, SearchStrategy.TYPE_HIERARCHY).stream(),
+					annotationStream);
+		}
+		Map<Class<?>, Annotation> annotationMap = annotationStream
+			.collect(Collectors.toMap(MergedAnnotation::getType, MergedAnnotation::synthesize, (a, b) -> a));
+		return annotationMap.containsKey(ConfigurationProperties.class)
+				? annotationMap.values().toArray(new Annotation[0]) : null;
 	}
 
 	private static <A extends Annotation> A findAnnotation(Object instance, Class<?> type, Method factory,

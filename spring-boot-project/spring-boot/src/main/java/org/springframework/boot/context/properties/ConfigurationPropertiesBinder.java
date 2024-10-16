@@ -41,7 +41,6 @@ import org.springframework.boot.context.properties.bind.handler.IgnoreTopLevelCo
 import org.springframework.boot.context.properties.bind.handler.NoUnboundElementsBindHandler;
 import org.springframework.boot.context.properties.bind.validation.ValidationBindHandler;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
-import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.context.properties.source.UnboundElementsSourceFilter;
 import org.springframework.context.ApplicationContext;
@@ -61,14 +60,20 @@ import org.springframework.validation.annotation.Validated;
  *
  * @author Stephane Nicoll
  * @author Phillip Webb
+ * @author Yanming Zhou
+ * @since 3.4
  */
-class ConfigurationPropertiesBinder {
+public class ConfigurationPropertiesBinder {
 
-	private static final String BEAN_NAME = "org.springframework.boot.context.internalConfigurationPropertiesBinder";
+	/**
+	 * The bean name of {@code ConfigurationPropertiesBinder}, allow application to
+	 * override binder by registering subclass with same bean name.
+	 */
+	public static final String BEAN_NAME = "org.springframework.boot.context.internalConfigurationPropertiesBinder";
 
 	private static final String VALIDATOR_BEAN_NAME = EnableConfigurationProperties.VALIDATOR_BEAN_NAME;
 
-	private final ApplicationContext applicationContext;
+	protected final ApplicationContext applicationContext;
 
 	private final PropertySources propertySources;
 
@@ -78,7 +83,7 @@ class ConfigurationPropertiesBinder {
 
 	private volatile Binder binder;
 
-	ConfigurationPropertiesBinder(ApplicationContext applicationContext) {
+	public ConfigurationPropertiesBinder(ApplicationContext applicationContext) {
 		this.applicationContext = applicationContext;
 		this.propertySources = new PropertySourcesDeducer(applicationContext).getPropertySources();
 		this.configurationPropertiesValidator = getConfigurationPropertiesValidator(applicationContext);
@@ -89,14 +94,16 @@ class ConfigurationPropertiesBinder {
 		Bindable<?> target = propertiesBean.asBindTarget();
 		ConfigurationProperties annotation = propertiesBean.getAnnotation();
 		BindHandler bindHandler = getBindHandler(target, annotation);
-		return getBinder().bind(annotation.prefix(), target, bindHandler);
+		Binder binder = getBinder(propertiesBean);
+		return binder.bind(annotation.prefix(), target, bindHandler);
 	}
 
 	Object bindOrCreate(ConfigurationPropertiesBean propertiesBean) {
 		Bindable<?> target = propertiesBean.asBindTarget();
 		ConfigurationProperties annotation = propertiesBean.getAnnotation();
 		BindHandler bindHandler = getBindHandler(target, annotation);
-		return getBinder().bindOrCreate(annotation.prefix(), target, bindHandler);
+		Binder binder = getBinder(propertiesBean);
+		return binder.bindOrCreate(annotation.prefix(), target, bindHandler);
 	}
 
 	private Validator getConfigurationPropertiesValidator(ApplicationContext applicationContext) {
@@ -170,16 +177,20 @@ class ConfigurationPropertiesBinder {
 			.toList();
 	}
 
-	private Binder getBinder() {
+	protected Binder getBinder(ConfigurationPropertiesBean propertiesBean) {
+		return getDefaultBinder();
+	}
+
+	private Binder getDefaultBinder() {
 		if (this.binder == null) {
-			this.binder = new Binder(getConfigurationPropertySources(), getPropertySourcesPlaceholdersResolver(),
-					getConversionServices(), getPropertyEditorInitializer(), null, null);
+			this.binder = createBinder(this.propertySources);
 		}
 		return this.binder;
 	}
 
-	private Iterable<ConfigurationPropertySource> getConfigurationPropertySources() {
-		return ConfigurationPropertySources.from(this.propertySources);
+	protected Binder createBinder(PropertySources propertySources) {
+		return new Binder(ConfigurationPropertySources.from(propertySources), getPropertySourcesPlaceholdersResolver(),
+				getConversionServices(), getPropertyEditorInitializer(), null, null);
 	}
 
 	private PropertySourcesPlaceholdersResolver getPropertySourcesPlaceholdersResolver() {

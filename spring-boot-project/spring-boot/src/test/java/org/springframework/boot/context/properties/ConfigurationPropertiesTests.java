@@ -18,6 +18,10 @@ package org.springframework.boot.context.properties;
 
 import java.beans.PropertyEditorSupport;
 import java.io.File;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.text.ParseException;
 import java.time.Duration;
 import java.time.Period;
@@ -56,6 +60,8 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.properties.bind.BindException;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.boot.context.properties.bind.validation.BindValidationException;
@@ -71,6 +77,7 @@ import org.springframework.boot.convert.PeriodUnit;
 import org.springframework.boot.env.RandomValuePropertySource;
 import org.springframework.boot.testsupport.system.CapturedOutput;
 import org.springframework.boot.testsupport.system.OutputCaptureExtension;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -82,6 +89,9 @@ import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.convert.support.DefaultConversionService;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.EnumerablePropertySource;
+import org.springframework.core.env.Environment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
 import org.springframework.core.env.PropertySource;
@@ -128,6 +138,7 @@ import static org.mockito.Mockito.mock;
  * @author Stephane Nicoll
  * @author Madhura Bhave
  * @author Vladislav Kisel
+ * @author Yanming Zhou
  */
 @ExtendWith(OutputCaptureExtension.class)
 class ConfigurationPropertiesTests {
@@ -1268,6 +1279,25 @@ class ConfigurationPropertiesTests {
 	void loadWhenBindingToJavaBeanWithConversionToCustomListImplementation() {
 		load(SetterBoundCustomListPropertiesConfiguration.class, "test.values=a,b");
 		assertThat(this.context.getBean(SetterBoundCustomListProperties.class).getValues()).containsExactly("a", "b");
+	}
+
+	@Test
+	void loadWhenUsingInheritedPrefixForJavaBeanBinder() {
+		load(SetterBoundInheritedPrefixConfiguration.class, "spring.service.host=127.0.0.1", "spring.service.port=6379",
+				"additional.service.port=6380");
+		SetterBoundServiceProperties properties = this.context.getBean("additionalServiceProperties",
+				SetterBoundServiceProperties.class);
+		assertThat(properties.getPort()).isEqualTo(6380);
+		assertThat(properties.getHost()).isEqualTo("127.0.0.1");
+	}
+
+	@Test
+	void loadWhenUsingInheritedPrefixForValueObjectBinder() {
+		load(ConstructorBoundInheritedPrefixConfiguration.class, "spring.service.host=127.0.0.1",
+				"spring.service.port=6379", "additional.service.port=6380");
+		ConstructorBoundServiceProperties properties = this.context.getBean(ConstructorBoundServiceProperties.class);
+		assertThat(properties.getPort()).isEqualTo(6380);
+		assertThat(properties.getHost()).isEqualTo("127.0.0.1");
 	}
 
 	private AnnotationConfigApplicationContext load(Class<?> configuration, String... inlinedProperties) {
@@ -3306,6 +3336,142 @@ class ConfigurationPropertiesTests {
 
 		CustomList(List<E> delegate) {
 			super(delegate);
+		}
+
+	}
+
+	@ConfigurationProperties(prefix = "spring.service")
+	static class SetterBoundServiceProperties {
+
+		private String host = "localhost";
+
+		private int port = 6379;
+
+		String getHost() {
+			return this.host;
+		}
+
+		void setHost(String host) {
+			this.host = host;
+		}
+
+		int getPort() {
+			return this.port;
+		}
+
+		void setPort(int port) {
+			this.port = port;
+		}
+
+	}
+
+	@Target({ ElementType.TYPE, ElementType.METHOD })
+	@Retention(RetentionPolicy.RUNTIME)
+	public @interface ConfigurationPropertiesInheritedPrefix {
+
+		String value();
+
+	}
+
+	@EnableConfigurationProperties(SetterBoundServiceProperties.class)
+	static class SetterBoundInheritedPrefixConfiguration {
+
+		@Bean(autowireCandidate = false) // do not back off auto-configured one
+		@ConfigurationPropertiesInheritedPrefix("spring.service")
+		@ConfigurationProperties(prefix = "additional.service")
+		SetterBoundServiceProperties additionalServiceProperties() {
+			return new SetterBoundServiceProperties();
+		}
+
+		@Bean(name = ConfigurationPropertiesBinder.BEAN_NAME)
+		static ConfigurationPropertiesBinder configurationPropertiesBinder(ApplicationContext applicationContext) {
+			return new InheritedPrefixConfigurationPropertiesBinder(applicationContext);
+		}
+
+	}
+
+	@ConfigurationPropertiesInheritedPrefix("spring.service")
+	@ConfigurationProperties(prefix = "additional.service")
+	static class ConstructorBoundServiceProperties {
+
+		private final String host;
+
+		private final int port;
+
+		ConstructorBoundServiceProperties(@DefaultValue("localhost") String host, @DefaultValue("6379") int port) {
+			this.host = host;
+			this.port = port;
+		}
+
+		String getHost() {
+			return this.host;
+		}
+
+		int getPort() {
+			return this.port;
+		}
+
+	}
+
+	@EnableConfigurationProperties(ConstructorBoundServiceProperties.class)
+	static class ConstructorBoundInheritedPrefixConfiguration {
+
+		@Bean(name = ConfigurationPropertiesBinder.BEAN_NAME)
+		static ConfigurationPropertiesBinder configurationPropertiesBinder(ApplicationContext applicationContext) {
+			return new InheritedPrefixConfigurationPropertiesBinder(applicationContext);
+		}
+
+	}
+
+	static class InheritedPrefixConfigurationPropertiesBinder extends ConfigurationPropertiesBinder {
+
+		InheritedPrefixConfigurationPropertiesBinder(ApplicationContext applicationContext) {
+			super(applicationContext);
+		}
+
+		@Override
+		protected Binder getBinder(ConfigurationPropertiesBean propertiesBean) {
+			Bindable<?> target = propertiesBean.asBindTarget();
+			ConfigurationPropertiesInheritedPrefix inheritedPrefix = target
+				.getAnnotation(ConfigurationPropertiesInheritedPrefix.class);
+			ConfigurationProperties annotation = target.getAnnotation(ConfigurationProperties.class);
+			if (inheritedPrefix == null || !StringUtils.hasText(inheritedPrefix.value()) || annotation == null
+					|| !StringUtils.hasText(annotation.prefix())) {
+				return super.getBinder(propertiesBean);
+			}
+			return getBinderForInheritedPrefix(annotation.prefix(), inheritedPrefix.value());
+		}
+
+		private Binder getBinderForInheritedPrefix(String prefix, String inheritedPrefix) {
+			org.springframework.core.env.PropertySources propertySources;
+			Environment environment = this.applicationContext.getEnvironment();
+			if (environment instanceof ConfigurableEnvironment configurableEnvironment) {
+				propertySources = configurableEnvironment.getPropertySources();
+			}
+			else {
+				throw new IllegalStateException("ConfigurableEnvironment is required");
+			}
+			MutablePropertySources propertySourcesToUse = new MutablePropertySources(propertySources);
+			propertySourcesToUse
+				.addLast(createPropertySourceForInheritedPrefix(propertySources, prefix, inheritedPrefix));
+			return createBinder(propertySourcesToUse);
+		}
+
+		private PropertySource<?> createPropertySourceForInheritedPrefix(
+				org.springframework.core.env.PropertySources propertySources, String prefix, String inheritedPrefix) {
+			Map<String, Object> map = new HashMap<>();
+			for (PropertySource<?> propertySource : propertySources) {
+				if (propertySource instanceof EnumerablePropertySource<?> enumerablePropertySource) {
+					for (String key : enumerablePropertySource.getPropertyNames()) {
+						if (key.startsWith(inheritedPrefix + '.')) {
+							map.put(prefix + '.' + key.substring(inheritedPrefix.length() + 1),
+									enumerablePropertySource.getProperty(key));
+						}
+					}
+				}
+			}
+			return new MapPropertySource(
+					"MapPropertySource for prefix '%s' inheriting from '%s'".formatted(prefix, inheritedPrefix), map);
 		}
 
 	}
