@@ -49,6 +49,7 @@ import org.springframework.util.StringUtils;
  * @author Moritz Halbritter
  * @author Andy Wilkinson
  * @author Phillip Webb
+ * @author Yanming Zhou
  */
 class ConnectionDetailsRegistrar {
 
@@ -109,7 +110,19 @@ class ConnectionDetailsRegistrar {
 		RootBeanDefinition beanDefinition = new RootBeanDefinition(beanType, beanSupplier);
 		beanDefinition.setAttribute(ServiceConnection.class.getName(), true);
 		containerMetadata.addTo(beanDefinition);
+		if (source.getOrigin() instanceof BeanOrigin beanOrigin
+				&& beanOrigin.getBeanDefinition() instanceof RootBeanDefinition originBeanDefinition) {
+			inheritQualifiers(originBeanDefinition, beanDefinition);
+		}
 		registry.registerBeanDefinition(beanName, beanDefinition);
+	}
+
+	private void inheritQualifiers(RootBeanDefinition origin, RootBeanDefinition derived) {
+		derived.setPrimary(origin.isPrimary());
+		derived.setFallback(origin.isFallback());
+		derived.setAutowireCandidate(origin.isAutowireCandidate());
+		derived.setDefaultCandidate(origin.isDefaultCandidate());
+		derived.setQualifiedElement(origin.getQualifiedElement());
 	}
 
 	private String getBeanName(ContainerConnectionSource<?> source, ConnectionDetails connectionDetails) {
