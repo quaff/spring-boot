@@ -23,6 +23,15 @@ include::example$aot/apply-native-image-plugin.gradle.kts[]
 ----
 ======
 
+NOTE: If the tasks are not configured automatically, make sure you are declaring Spring Boot plugin and GraalVM Native Image plugin in the same way, for example:
+[source,kotlin,indent=0,subs="verbatim,attributes"]
+----
+plugins {
+	java
+	id("org.springframework.boot") // The plugin doesn't need version because it's dependency of buildSrc
+	id("org.graalvm.buildtools.native").version("latest.release") // You should declare it as dependency of buildSrc too and remove version
+}
+----
 
 
 [[aot.processing-applications]]
