@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ package org.springframework.boot.autoconfigure.task;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -211,6 +213,13 @@ class TaskExecutionAutoConfigurationTests {
 	}
 
 	@Test
+	void taskExecutorWhenHasCustomExecutorServiceShouldNotBackOff() {
+		this.contextRunner.withUserConfiguration(CustomExecutorServiceConfig.class).run((context) -> {
+			assertThat(context).hasSingleBean(TaskExecutor.class);
+		});
+	}
+
+	@Test
 	@EnabledForJreRange(min = JRE.JAVA_21)
 	void whenVirtualThreadsAreEnabledAndCustomTaskExecutorIsDefinedThenSimpleAsyncTaskExecutorThatUsesVirtualThreadsBacksOff() {
 		this.contextRunner.withUserConfiguration(CustomTaskExecutorConfig.class)
@@ -303,8 +312,18 @@ class TaskExecutionAutoConfigurationTests {
 	static class CustomTaskExecutorConfig {
 
 		@Bean
-		Executor customTaskExecutor() {
+		TaskExecutor customTaskExecutor() {
 			return new SyncTaskExecutor();
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class CustomExecutorServiceConfig {
+
+		@Bean
+		ExecutorService executorService() {
+			return Executors.newSingleThreadScheduledExecutor();
 		}
 
 	}
