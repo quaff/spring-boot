@@ -63,6 +63,7 @@ import org.springframework.boot.autoconfigure.jdbc.EmbeddedDataSourceConfigurati
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.test.City;
+import org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.autoconfigure.transaction.TransactionManagerCustomizationAutoConfiguration;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -107,6 +108,7 @@ import static org.mockito.Mockito.mock;
  * @author Mahmoud Ben Hassine
  * @author Lars Uffmann
  * @author Lasse Wulff
+ * @author Yanming Zhou
  */
 @ExtendWith(OutputCaptureExtension.class)
 class BatchAutoConfigurationTests {
@@ -394,6 +396,17 @@ class BatchAutoConfigurationTests {
 					assertThat(beanFactory.getBeanDefinition(jobRepositoryName).getDependsOn())
 						.contains("batchDataSourceInitializer");
 				}
+			});
+	}
+
+	@Test
+	void initializeSchemaDefaultsToSpringSqlInitMode() {
+		this.contextRunner.withConfiguration(AutoConfigurations.of(SqlInitializationAutoConfiguration.class))
+			.withUserConfiguration(TestConfiguration.class, EmbeddedDataSourceConfiguration.class)
+			.withPropertyValues("spring.sql.init.mode=always")
+			.run((context) -> {
+				assertThat(context.getBean(BatchDataSourceScriptDatabaseInitializer.class)).extracting("settings.mode")
+					.isSameAs(DatabaseInitializationMode.ALWAYS);
 			});
 	}
 

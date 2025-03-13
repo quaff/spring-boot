@@ -36,8 +36,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.autoconfigure.sql.init.OnDatabaseInitializationCondition;
+import org.springframework.boot.autoconfigure.sql.init.SqlInitializationProperties;
 import org.springframework.boot.autoconfigure.transaction.TransactionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.sql.init.DatabaseInitializationMode;
 import org.springframework.boot.sql.init.dependency.DatabaseInitializationDependencyConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
@@ -66,6 +68,7 @@ import org.springframework.util.StringUtils;
  * @author Mahmoud Ben Hassine
  * @author Lars Uffmann
  * @author Lasse Wulff
+ * @author Yanming Zhou
  * @since 1.0.0
  */
 @AutoConfiguration(after = { HibernateJpaAutoConfiguration.class, TransactionAutoConfiguration.class })
@@ -175,9 +178,16 @@ public class BatchAutoConfiguration {
 		@Bean
 		@ConditionalOnMissingBean
 		BatchDataSourceScriptDatabaseInitializer batchDataSourceInitializer(DataSource dataSource,
-				@BatchDataSource ObjectProvider<DataSource> batchDataSource, BatchProperties properties) {
-			return new BatchDataSourceScriptDatabaseInitializer(batchDataSource.getIfAvailable(() -> dataSource),
-					properties.getJdbc());
+				@BatchDataSource ObjectProvider<DataSource> batchDataSource, BatchProperties properties,
+				ObjectProvider<SqlInitializationProperties> sqlInitializationProperties) {
+			BatchProperties.Jdbc jdbc = properties.getJdbc();
+			if (jdbc.getInitializeSchema() == null) {
+				sqlInitializationProperties.ifAvailable((it) -> jdbc.setInitializeSchema(it.getMode()));
+			}
+			if (jdbc.getInitializeSchema() == null) {
+				jdbc.setInitializeSchema(DatabaseInitializationMode.EMBEDDED);
+			}
+			return new BatchDataSourceScriptDatabaseInitializer(batchDataSource.getIfAvailable(() -> dataSource), jdbc);
 		}
 
 	}

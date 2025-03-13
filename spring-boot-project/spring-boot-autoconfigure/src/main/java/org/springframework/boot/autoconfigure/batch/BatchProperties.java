@@ -91,7 +91,7 @@ public class BatchProperties {
 		/**
 		 * Database schema initialization mode.
 		 */
-		private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
+		private DatabaseInitializationMode initializeSchema;
 
 		public Isolation getIsolationLevelForCreate() {
 			return this.isolationLevelForCreate;
