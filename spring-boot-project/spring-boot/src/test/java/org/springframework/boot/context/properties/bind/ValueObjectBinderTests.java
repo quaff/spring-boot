@@ -366,6 +366,64 @@ class ValueObjectBinderTests {
 	}
 
 	@Test
+	void bindToFallbackPropertyConstructorParameter() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		this.sources.add(source);
+		Bindable<FallbackPropertyConstructorParameter> target = Bindable.of(FallbackPropertyConstructorParameter.class);
+
+		FallbackPropertyConstructorParameter bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isNull();
+
+		source.put("fallback.name", "fallback");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isEqualTo("fallback");
+
+		source.put("test.name", "test");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isEqualTo("test");
+	}
+
+	@Test
+	void bindToFallbackPropertyConstructorParameterWithDefaultValue() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		this.sources.add(source);
+		Bindable<FallbackPropertyConstructorParameter> target = Bindable.of(FallbackPropertyConstructorParameter.class);
+
+		FallbackPropertyConstructorParameter bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getValue()).containsExactly("defaultValue1", "defaultValue2");
+
+		source.put("fallback.value[0]", "fallbackValue1");
+		source.put("fallback.value[1]", "fallbackValue2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getValue()).containsExactly("fallbackValue1", "fallbackValue2");
+
+		source.put("test.value[0]", "value1");
+		source.put("test.value[1]", "value2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getValue()).containsExactly("value1", "value2");
+	}
+
+	@Test
+	void bindToFallbackPropertyConstructorParameterWithDefaultValueAndName() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		this.sources.add(source);
+		Bindable<FallbackPropertyConstructorParameter> target = Bindable.of(FallbackPropertyConstructorParameter.class);
+
+		FallbackPropertyConstructorParameter bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).containsExactly("defaultImport1", "defaultImport2");
+
+		source.put("fallback.import[0]", "fallbackImport1");
+		source.put("fallback.import[1]", "fallbackImport2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).containsExactly("fallbackImport1", "fallbackImport2");
+
+		source.put("test.import[0]", "import1");
+		source.put("test.import[1]", "import2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).containsExactly("import1", "import2");
+	}
+
+	@Test
 	void bindToAnnotationNamedConstructorParameter() {
 		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
 		source.put("test.import", "test");
@@ -921,6 +979,37 @@ class ValueObjectBinderTests {
 
 		void setJsonPath(JsonPath jsonPath) {
 			this.jsonPath = jsonPath;
+		}
+
+	}
+
+	static class FallbackPropertyConstructorParameter {
+
+		private final String name;
+
+		private final String[] value;
+
+		private final String[] imports;
+
+		FallbackPropertyConstructorParameter(@FallbackProperty("fallback.name") String name,
+				@FallbackProperty("fallback.value") @DefaultValue({ "defaultValue1", "defaultValue2" }) String[] value,
+				@FallbackProperty("fallback.import") @Name("import") @DefaultValue({ "defaultImport1",
+						"defaultImport2" }) String[] imports) {
+			this.name = name;
+			this.value = value;
+			this.imports = imports;
+		}
+
+		String getName() {
+			return this.name;
+		}
+
+		String[] getValue() {
+			return this.value;
+		}
+
+		String[] getImports() {
+			return this.imports;
 		}
 
 	}

@@ -41,6 +41,7 @@ import org.springframework.boot.context.properties.source.ConfigurationPropertyS
 import org.springframework.core.BridgeMethodResolver;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.ResolvableType;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * {@link DataObjectBinder} for mutable Java Beans.
@@ -124,7 +125,10 @@ class JavaBeanBinder implements DataObjectBinder {
 		Object bound = propertyBinder.bindProperty(propertyName,
 				Bindable.of(type).withSuppliedValue(value).withAnnotations(annotations));
 		if (bound == null) {
-			return false;
+			bound = bindFallbackProperty(propertyBinder, property);
+			if (bound == null) {
+				return false;
+			}
 		}
 		if (property.isSettable()) {
 			property.setValue(beanSupplier, bound);
@@ -133,6 +137,31 @@ class JavaBeanBinder implements DataObjectBinder {
 			throw new IllegalStateException("No setter found for property: " + property.getName());
 		}
 		return true;
+	}
+
+	private Object bindFallbackProperty(DataObjectPropertyBinder propertyBinder, BeanProperty property) {
+		if (property.getAnnotations() != null) {
+			for (Annotation annotation : property.getAnnotations()) {
+				if (annotation instanceof FallbackProperty fallbackProperty) {
+					Binder binder = extractBinder(propertyBinder);
+					if (binder == null) {
+						return null;
+					}
+					return binder.bind(fallbackProperty.value(), Bindable.of(property.getType())).orElse(null);
+				}
+			}
+		}
+		return null;
+	}
+
+	private Binder extractBinder(DataObjectPropertyBinder propertyBinder) {
+		for (Field field : propertyBinder.getClass().getDeclaredFields()) {
+			if (Binder.class.isAssignableFrom(field.getType())) {
+				ReflectionUtils.makeAccessible(field);
+				return (Binder) ReflectionUtils.getField(field, propertyBinder);
+			}
+		}
+		return null;
 	}
 
 	private String determinePropertyName(BeanProperty property) {

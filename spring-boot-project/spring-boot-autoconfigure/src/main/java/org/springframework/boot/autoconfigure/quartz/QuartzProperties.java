@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.FallbackProperty;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 /**
@@ -31,6 +32,7 @@ import org.springframework.boot.sql.init.DatabaseInitializationMode;
  *
  * @author Vedran Pavic
  * @author Stephane Nicoll
+ * @author Yanming Zhou
  * @since 2.0.0
  */
 @ConfigurationProperties("spring.quartz")
@@ -150,6 +152,7 @@ public class QuartzProperties {
 		/**
 		 * Database schema initialization mode.
 		 */
+		@FallbackProperty("spring.sql.init.mode")
 		private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
 		/**

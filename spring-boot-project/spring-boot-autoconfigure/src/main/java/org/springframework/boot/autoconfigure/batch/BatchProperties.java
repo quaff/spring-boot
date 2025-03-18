@@ -17,6 +17,7 @@
 package org.springframework.boot.autoconfigure.batch;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.FallbackProperty;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 import org.springframework.transaction.annotation.Isolation;
 
@@ -97,6 +98,7 @@ public class BatchProperties {
 		/**
 		 * Database schema initialization mode.
 		 */
+		@FallbackProperty("spring.sql.init.mode")
 		private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
 		public boolean isValidateTransactionState() {

@@ -17,6 +17,7 @@
 package org.springframework.boot.autoconfigure.session;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.FallbackProperty;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 import org.springframework.session.FlushMode;
 import org.springframework.session.SaveMode;
@@ -25,6 +26,7 @@ import org.springframework.session.SaveMode;
  * Configuration properties for JDBC backed Spring Session.
  *
  * @author Vedran Pavic
+ * @author Yanming Zhou
  * @since 2.0.0
  */
 @ConfigurationProperties("spring.session.jdbc")
@@ -61,6 +63,7 @@ public class JdbcSessionProperties {
 	/**
 	 * Database schema initialization mode.
 	 */
+	@FallbackProperty("spring.sql.init.mode")
 	private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
 	/**

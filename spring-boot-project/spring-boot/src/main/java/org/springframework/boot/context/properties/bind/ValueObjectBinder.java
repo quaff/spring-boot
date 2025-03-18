@@ -60,6 +60,7 @@ import org.springframework.util.Assert;
  * @author Stephane Nicoll
  * @author Phillip Webb
  * @author Scott Frederick
+ * @author Yanming Zhou
  */
 class ValueObjectBinder implements DataObjectBinder {
 
@@ -120,6 +121,14 @@ class ValueObjectBinder implements DataObjectBinder {
 	private <T> T getDefaultValue(Binder.Context context, ConstructorParameter parameter) {
 		ResolvableType type = parameter.getType();
 		Annotation[] annotations = parameter.getAnnotations();
+		for (Annotation annotation : annotations) {
+			if (annotation instanceof FallbackProperty fallbackProperty) {
+				BindResult<String[]> bindResult = context.getBinder().bind(fallbackProperty.value(), String[].class);
+				if (bindResult.isBound()) {
+					return convertDefaultValue(context.getConverter(), bindResult.get(), type, annotations);
+				}
+			}
+		}
 		for (Annotation annotation : annotations) {
 			if (annotation instanceof DefaultValue defaultValueAnnotation) {
 				String[] defaultValue = defaultValueAnnotation.value();

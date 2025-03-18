@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.FallbackProperty;
 import org.springframework.boot.sql.init.DatabaseInitializationMode;
 
 /**
@@ -30,6 +31,7 @@ import org.springframework.boot.sql.init.DatabaseInitializationMode;
  * @author Vedran Pavic
  * @author Stephane Nicoll
  * @author Artem Bilan
+ * @author Yanming Zhou
  * @since 2.0.0
  */
 @ConfigurationProperties("spring.integration")
@@ -231,6 +233,7 @@ public class IntegrationProperties {
 		/**
 		 * Database schema initialization mode.
 		 */
+		@FallbackProperty("spring.sql.init.mode")
 		private DatabaseInitializationMode initializeSchema = DatabaseInitializationMode.EMBEDDED;
 
 		public String getSchema() {

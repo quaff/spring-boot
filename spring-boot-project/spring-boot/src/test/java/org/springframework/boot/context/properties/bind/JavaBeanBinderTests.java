@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2024 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ import static org.assertj.core.api.Assertions.entry;
  * @author Madhura Bhave
  * @author Andy Wilkinson
  * @author Lasse Wulff
+ * @author Yanming Zhou
  */
 class JavaBeanBinderTests {
 
@@ -613,6 +614,44 @@ class JavaBeanBinderTests {
 		Binder binder = new Binder(this.sources, null, conversionService);
 		BridgeMethods bean = binder.bind("test", Bindable.of(BridgeMethods.class)).get();
 		assertThat(bean.getValue()).hasToString("spring-boot");
+	}
+
+	@Test
+	void bindToFallbackPropertyBean() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		this.sources.add(source);
+		Bindable<FallbackPropertyBean> target = Bindable.of(FallbackPropertyBean.class);
+
+		FallbackPropertyBean bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isEqualTo("default");
+
+		source.put("fallback.name", "fallback");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isEqualTo("fallback");
+
+		source.put("test.name", "test");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getName()).isEqualTo("test");
+	}
+
+	@Test
+	void bindToFallbackPropertyBeanWithName() {
+		MockConfigurationPropertySource source = new MockConfigurationPropertySource();
+		this.sources.add(source);
+		Bindable<FallbackPropertyBean> target = Bindable.of(FallbackPropertyBean.class);
+
+		FallbackPropertyBean bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).isNull();
+
+		source.put("fallback.import[0]", "fallbackImport1");
+		source.put("fallback.import[1]", "fallbackImport2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).containsExactly("fallbackImport1", "fallbackImport2");
+
+		source.put("test.import[0]", "import1");
+		source.put("test.import[1]", "import2");
+		bound = this.binder.bindOrCreate("test", target);
+		assertThat(bound.getImports()).containsExactly("import1", "import2");
 	}
 
 	static class ExampleValueBean {
@@ -1261,6 +1300,33 @@ class JavaBeanBinderTests {
 		@Override
 		public String toString() {
 			return this.value;
+		}
+
+	}
+
+	static class FallbackPropertyBean {
+
+		@FallbackProperty("fallback.name")
+		private String name = "default";
+
+		@FallbackProperty("fallback.import")
+		@Name("import")
+		private String[] imports;
+
+		String getName() {
+			return this.name;
+		}
+
+		void setName(String name) {
+			this.name = name;
+		}
+
+		String[] getImports() {
+			return this.imports;
+		}
+
+		void setImports(String[] imports) {
+			this.imports = imports;
 		}
 
 	}
