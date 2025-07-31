@@ -36,15 +36,15 @@ class KeyValueCondition extends SpringBootCondition {
 		ConditionMessage.Builder message = ConditionMessage.forCondition("Public Key Value Condition");
 		Environment environment = context.getEnvironment();
 		String publicKeyLocation = environment
-			.getProperty("spring.security.oauth2.resourceserver.jwt.public-key-location");
+			.getProperty(OAuth2ResourceServerProperties.JWT_PROPERTIES_PREFIX + ".public-key-location");
 		if (!StringUtils.hasText(publicKeyLocation)) {
 			return ConditionOutcome.noMatch(message.didNotFind("public-key-location property").atAll());
 		}
-		String jwkSetUri = environment.getProperty("spring.security.oauth2.resourceserver.jwt.jwk-set-uri");
+		String jwkSetUri = environment.getProperty(OAuth2ResourceServerProperties.JWT_PROPERTIES_PREFIX + ".jwk-set-uri");
 		if (StringUtils.hasText(jwkSetUri)) {
 			return ConditionOutcome.noMatch(message.found("jwk-set-uri property").items(jwkSetUri));
 		}
-		String issuerUri = environment.getProperty("spring.security.oauth2.resourceserver.jwt.issuer-uri");
+		String issuerUri = environment.getProperty(OAuth2ResourceServerProperties.JWT_PROPERTIES_PREFIX + ".issuer-uri");
 		if (StringUtils.hasText(issuerUri)) {
 			return ConditionOutcome.noMatch(message.found("issuer-uri property").items(issuerUri));
 		}
