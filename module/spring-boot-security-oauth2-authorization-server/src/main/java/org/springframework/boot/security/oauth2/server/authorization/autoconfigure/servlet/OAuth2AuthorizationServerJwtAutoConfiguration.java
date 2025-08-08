@@ -35,10 +35,12 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.security.autoconfigure.servlet.UserDetailsServiceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Role;
+import org.springframework.security.config.crypto.RsaKeyConversionServicePostProcessor;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
@@ -48,29 +50,44 @@ import org.springframework.security.oauth2.server.authorization.config.annotatio
  * OAuth2 authorization server that require it (e.g. User Info, Client Registration).
  *
  * @author Steve Riesenberg
+ * @author Yanming Zhou
  * @since 4.0.0
  */
 @AutoConfiguration(after = UserDetailsServiceAutoConfiguration.class)
 @ConditionalOnClass({ OAuth2Authorization.class, JWKSource.class })
 @ConditionalOnWebApplication(type = Type.SERVLET)
+@EnableConfigurationProperties(OAuth2AuthorizationServerProperties.class)
 public final class OAuth2AuthorizationServerJwtAutoConfiguration {
 
 	@Bean
 	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 	@ConditionalOnMissingBean
-	JWKSource<SecurityContext> jwkSource() {
-		RSAKey rsaKey = getRsaKey();
+	JWKSource<SecurityContext> jwkSource(OAuth2AuthorizationServerProperties properties) {
+		RSAKey rsaKey = getRsaKey(properties.getRsa());
 		JWKSet jwkSet = new JWKSet(rsaKey);
 		return new ImmutableJWKSet<>(jwkSet);
 	}
 
-	private static RSAKey getRsaKey() {
-		KeyPair keyPair = generateRsaKey();
-		RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
-		RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
-		RSAKey rsaKey = new RSAKey.Builder(publicKey).privateKey(privateKey)
-			.keyID(UUID.randomUUID().toString())
-			.build();
+	@Bean
+	@Role(BeanDefinition.ROLE_INFRASTRUCTURE)
+	@ConditionalOnMissingBean
+	static RsaKeyConversionServicePostProcessor rsaKeyConversionServicePostProcessor() {
+		return new RsaKeyConversionServicePostProcessor();
+	}
+
+	private static RSAKey getRsaKey(OAuth2AuthorizationServerProperties.Rsa rsa) {
+		RSAKey rsaKey;
+		if (rsa.getPublicKey() != null && rsa.getPrivateKey() != null) {
+			rsaKey = new RSAKey.Builder(rsa.getPublicKey()).privateKey(rsa.getPrivateKey())
+				.keyID(rsa.getKeyId() != null ? rsa.getKeyId() : UUID.randomUUID().toString())
+				.build();
+		}
+		else {
+			KeyPair keyPair = generateRsaKey();
+			RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
+			RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
+			rsaKey = new RSAKey.Builder(publicKey).privateKey(privateKey).keyID(UUID.randomUUID().toString()).build();
+		}
 		return rsaKey;
 	}
 

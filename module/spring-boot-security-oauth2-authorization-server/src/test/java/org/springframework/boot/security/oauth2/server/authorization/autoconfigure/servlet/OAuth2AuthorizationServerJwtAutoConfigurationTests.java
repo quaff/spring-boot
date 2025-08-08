@@ -16,6 +16,8 @@
 
 package org.springframework.boot.security.oauth2.server.authorization.autoconfigure.servlet;
 
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
@@ -36,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for {@link OAuth2AuthorizationServerJwtAutoConfiguration}.
  *
  * @author Steve Riesenberg
+ * @author Yanming Zhou
  */
 class OAuth2AuthorizationServerJwtAutoConfigurationTests {
 
@@ -89,6 +92,22 @@ class OAuth2AuthorizationServerJwtAutoConfigurationTests {
 			assertThat(context).hasBean("jwkSource");
 			assertThat(context.getBean("jwkSource")).isNotInstanceOf(ImmutableJWKSet.class);
 		});
+	}
+
+	@Test
+	void jwkSetShouldUseConfiguredRsaKeys() {
+		this.contextRunner
+			.withPropertyValues("spring.security.oauth2.authorizationserver.rsa.key-id=test",
+					"spring.security.oauth2.authorizationserver.rsa.public-key=classpath:rsa/public.pem",
+					"spring.security.oauth2.authorizationserver.rsa.private-key=classpath:rsa/private.pem")
+			.run((context) -> {
+				OAuth2AuthorizationServerProperties.Rsa rsa = context.getBean(OAuth2AuthorizationServerProperties.class)
+					.getRsa();
+				JWKSet jwkSet = context.getBean(ImmutableJWKSet.class).getJWKSet();
+				RSAKey rsaKey = jwkSet.getKeyByKeyId("test").toRSAKey();
+				assertThat(rsaKey.toRSAPublicKey()).isEqualTo(rsa.getPublicKey());
+				assertThat(rsaKey.toRSAPrivateKey()).isEqualTo(rsa.getPrivateKey());
+			});
 	}
 
 	@Configuration

@@ -16,6 +16,8 @@
 
 package org.springframework.boot.security.oauth2.server.authorization.autoconfigure.servlet;
 
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,6 +37,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Steve Riesenberg
  * @author Florian Lemaire
+ * @author Yanming Zhou
  * @since 4.0.0
  */
 @ConfigurationProperties("spring.security.oauth2.authorizationserver")
@@ -62,6 +65,11 @@ public class OAuth2AuthorizationServerProperties implements InitializingBean {
 	 */
 	private final Endpoint endpoint = new Endpoint();
 
+	/**
+	 * Authorization Server endpoints.
+	 */
+	private final Rsa rsa = new Rsa();
+
 	public boolean isMultipleIssuersAllowed() {
 		return this.multipleIssuersAllowed;
 	}
@@ -84,6 +92,10 @@ public class OAuth2AuthorizationServerProperties implements InitializingBean {
 
 	public Endpoint getEndpoint() {
 		return this.endpoint;
+	}
+
+	public Rsa getRsa() {
+		return this.rsa;
 	}
 
 	@Override
@@ -563,6 +575,52 @@ public class OAuth2AuthorizationServerProperties implements InitializingBean {
 
 		public void setIdTokenSignatureAlgorithm(String idTokenSignatureAlgorithm) {
 			this.idTokenSignatureAlgorithm = idTokenSignatureAlgorithm;
+		}
+
+	}
+
+	/**
+	 * RSA keys for JWK.
+	 */
+	public static class Rsa {
+
+		/**
+		 * RSA key ID.
+		 */
+		private @Nullable String keyId;
+
+		/**
+		 * RSA public key.
+		 */
+		private @Nullable RSAPublicKey publicKey;
+
+		/**
+		 * RSA private key.
+		 */
+		private @Nullable RSAPrivateKey privateKey;
+
+		public @Nullable String getKeyId() {
+			return this.keyId;
+		}
+
+		public void setKeyId(String keyId) {
+			this.keyId = keyId;
+		}
+
+		public @Nullable RSAPublicKey getPublicKey() {
+			return this.publicKey;
+		}
+
+		public void setPublicKey(RSAPublicKey publicKey) {
+			this.publicKey = publicKey;
+		}
+
+		public @Nullable RSAPrivateKey getPrivateKey() {
+			return this.privateKey;
+		}
+
+		public void setPrivateKey(RSAPrivateKey privateKey) {
+			this.privateKey = privateKey;
 		}
 
 	}
