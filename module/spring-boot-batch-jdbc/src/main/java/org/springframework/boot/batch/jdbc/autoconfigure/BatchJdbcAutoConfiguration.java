@@ -50,6 +50,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.convert.support.ConfigurableConversionService;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.init.DatabasePopulator;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Isolation;
@@ -102,7 +103,10 @@ public final class BatchJdbcAutoConfiguration {
 				ObjectProvider<ExecutionContextSerializer> executionContextSerializer,
 				ObjectProvider<JobParametersConverter> jobParametersConverter) {
 			this.dataSource = batchDataSource.getIfAvailable(() -> dataSource);
-			this.transactionManager = batchTransactionManager.getIfAvailable(() -> transactionManager);
+			this.transactionManager = batchTransactionManager.getIfAvailable(() -> {
+				DataSource batchDS = batchDataSource.getIfAvailable();
+				return (batchDS != null) ? new DataSourceTransactionManager(batchDS) : transactionManager;
+			});
 			this.taskExecutor = batchTaskExecutor.getIfAvailable();
 			this.properties = properties;
 			this.batchConversionServiceCustomizers = batchConversionServiceCustomizers.orderedStream().toList();
